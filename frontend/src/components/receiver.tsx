@@ -5,7 +5,7 @@ import { ANSWER, ICECANDIDATES, OFFER, RECEIVER } from "../messages/messages"
 const Receiver = () => {
 
   const socket = Socket()
-  const video = useRef<HTMLVideoElement | null>(null)
+  const localVideoRef = useRef<HTMLVideoElement | null>(null)
 
   useEffect(() => {
     if(!socket) return
@@ -21,45 +21,37 @@ const Receiver = () => {
     const message = JSON.parse(e.data)
     let pc:RTCPeerConnection | null = null
 
-    console.log(message,"in receiver")
     switch (message.type) {
       case OFFER:
         pc = new RTCPeerConnection()
 
         pc.ontrack = (event) =>{
-          const video = document.createElement('video');
-          document.body.appendChild(video)
+  
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = new MediaStream([
+              event.track
+            ]);
+            localVideoRef.current.play();
+          }
           console.log(event.track)
-          video.srcObject = new MediaStream([event.track])
-          video.onloadedmetadata = () => {
-            console.log('Video metadata loaded');
-            video.play()
-                .then(() => {
-                    console.log('Video playback started successfully');
-                })
-                .catch((error) => {
-                    console.error('Error starting video playback:', error);
-                });
-        };
         }
 
         pc.onicecandidate = (event) => {
+          console.log(event.candidate)
           socket.send(JSON.stringify({type:ICECANDIDATES, candidate:event.candidate}))
         }
-
-        await pc.setRemoteDescription(message.sdp)          //receiving sender's description
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)                //forwarding local description ahead
-        socket.send(JSON.stringify({type:ANSWER,sdp:pc.localDescription}))
+        pc.setRemoteDescription(message.sdp).
+          then(() => pc!.createAnswer()
+             .then((answer) => {pc!.setLocalDescription(answer)
+                 socket.send(JSON.stringify({ type: ANSWER, sdp: answer }))
+                }
+            ))
         break;
     
-     case ANSWER:
-        break;
-
       case ICECANDIDATES:
        if(pc !== null){
         // @ts-ignore
-        pc!.addIceCandidate(message.canidate)
+        pc.addIceCandidate(message.candidate)
        }
     }
   }
@@ -68,9 +60,12 @@ const Receiver = () => {
   
 
   return (
-    <div>receiver
-    <video src="" ref={video} ></video>
-    </div>
+        <div className="text-black">
+          receiver
+            <div className="border-black border " >
+            <video src="" className="border-white border "  ref={localVideoRef} ></video>
+          </div>
+        </div>
   )
 }
 

@@ -9,7 +9,7 @@ const wss= new  WebSocketServer({port:8080})
 wss.on("connection",(ws:WebSocket)=>{
     
     ws.on("message",(data:any)=>{
-        const message = JSON.parse(data)
+        const message = JSON.parse(data.toString())
         console.log(message,"event data")
         switch (message.type) {
             case SENDER:

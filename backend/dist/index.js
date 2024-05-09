@@ -7,7 +7,7 @@ let ReceieverSocket = null;
 const wss = new ws_1.WebSocketServer({ port: 8080 });
 wss.on("connection", (ws) => {
     ws.on("message", (data) => {
-        const message = JSON.parse(data);
+        const message = JSON.parse(data.toString());
         console.log(message, "event data");
         switch (message.type) {
             case messages_1.SENDER:

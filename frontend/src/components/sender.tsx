@@ -1,3 +1,4 @@
+
 import { useEffect } from "react"
 import { ANSWER, ICECANDIDATES, OFFER, SENDER } from "../messages/messages"
 import useSocket from "../hooks/Socket"
@@ -26,6 +27,7 @@ const Sender = () => {
     
     pc1.onicecandidate = (event) =>{
         // sends ice candidates whenever it trickles in
+        console.log(event.candidate)
         socket.send(JSON.stringify({type:ICECANDIDATES, candidate:event.candidate}))
     }
 
@@ -35,17 +37,18 @@ const Sender = () => {
     socket?.send(JSON.stringify({ type:OFFER, sdp: pc1.localDescription }))
  }
      
- const stream = await navigator.mediaDevices.getUserMedia({video:true,audio:true})
- pc1.addTrack(stream.getVideoTracks()[0])
-//  pc1.addTrack(stream.getAudioTracks()[0])
+    const stream = await window.navigator.mediaDevices.getUserMedia({video:true,audio:false})
 
-    socket.onmessage = (e)=>{
-      const message = e.data
+    // console.log(stream.getTracks()[0])
+    pc1.addTrack(stream.getTracks()[0])
+    //  pc1.addTrack(stream.getAudioTracks()[0])
 
+    socket.onmessage = async(e)=>{
+      const message = JSON.parse(e.data)
       switch (message.type) {
 
         case ANSWER:
-          pc1.setRemoteDescription(message.sdp)
+        await  pc1.setRemoteDescription(message.sdp)
 
           break;
 
