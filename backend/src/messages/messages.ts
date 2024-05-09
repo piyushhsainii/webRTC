@@ -1,0 +1,5 @@
+export const SENDER = "sender"
+export const RECEIVER = "receiver"
+export const OFFER = "create-offer"
+export const  ANSWER = "answer"
+export const ICECANDIDATES = "ice-candidates"
