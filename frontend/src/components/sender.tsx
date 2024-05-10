@@ -28,32 +28,38 @@ const Sender = () => {
     pc1.onicecandidate = (event) =>{
         // sends ice candidates whenever it trickles in
         console.log(event.candidate)
-        socket.send(JSON.stringify({type:ICECANDIDATES, candidate:event.candidate}))
+        if(event.candidate){
+          socket.send(JSON.stringify({type:ICECANDIDATES, candidate:event.candidate}))
+        }
     }
 
  pc1.onnegotiationneeded = async()=>{
     const offer = await  pc1.createOffer()
     await pc1.setLocalDescription(offer)
-    socket?.send(JSON.stringify({ type:OFFER, sdp: pc1.localDescription }))
+    if(pc1.localDescription){
+      socket?.send(JSON.stringify({ type:OFFER, sdp: pc1.localDescription }))
+    }
  }
      
-    const stream = await window.navigator.mediaDevices.getUserMedia({video:true,audio:false})
+    const stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false})
 
     // console.log(stream.getTracks()[0])
-    pc1.addTrack(stream.getTracks()[0])
-    //  pc1.addTrack(stream.getAudioTracks()[0])
+    // pc1.addTrack(stream.getTracks()[0])
+    stream.getTracks().forEach((track) => pc1.addTrack(track));
 
     socket.onmessage = async(e)=>{
       const message = JSON.parse(e.data)
       switch (message.type) {
 
         case ANSWER:
-        await  pc1.setRemoteDescription(message.sdp)
+       if(message.sdp){
+        await  pc1.setRemoteDescription(new RTCSessionDescription(message.sdp))
+       }
 
           break;
 
         case ICECANDIDATES:
-          pc1.addIceCandidate(message.candidate)
+          pc1.addIceCandidate(new RTCIceCandidate(message.candidate))
       }
 
     }

@@ -6,6 +6,7 @@ const Receiver = () => {
 
   const socket = Socket()
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
+  const pcRef = useRef<RTCPeerConnection | null>(null);
 
   useEffect(() => {
     if(!socket) return
@@ -23,24 +24,41 @@ const Receiver = () => {
 
     switch (message.type) {
       case OFFER:
-        pc = new RTCPeerConnection()
+        pcRef.current = new RTCPeerConnection()
 
-        pc.ontrack = (event) =>{
+        pcRef.current.ontrack = (event) =>{
+          console.log(event.track)
   
           if (localVideoRef.current) {
-            localVideoRef.current.srcObject = new MediaStream([
-              event.track
-            ]);
-            localVideoRef.current.play();
+            if(localVideoRef.current.srcObject){
+              localVideoRef.current.srcObject = new MediaStream();
+            }
+            (localVideoRef.current.srcObject as MediaStream).addTrack(event.track)
           }
           console.log(event.track)
         }
 
-        pc.onicecandidate = (event) => {
-          console.log(event.candidate)
+        pcRef.current.onicecandidate = (event) => {
+        console.log(event.candidate)
+
+         if(event.candidate){
           socket.send(JSON.stringify({type:ICECANDIDATES, candidate:event.candidate}))
+         }
         }
-        pc.setRemoteDescription(message.sdp).
+
+        pcRef.current.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
+          if (event.candidate) {
+            socket.send(
+              JSON.stringify({ type: ICECANDIDATES, candidate: event.candidate })
+            );
+          }
+        };
+
+        pcRef.current.oniceconnectionstatechange = () => {
+          console.log(`ICE connection state: ${pcRef.current?.iceConnectionState}`);
+        };
+
+        pcRef.current.setRemoteDescription(message.sdp).
           then(() => pc!.createAnswer()
              .then((answer) => {pc!.setLocalDescription(answer)
                  socket.send(JSON.stringify({ type: ANSWER, sdp: answer }))
@@ -56,14 +74,23 @@ const Receiver = () => {
     }
   }
 
-  }, [socket])
+}, [socket])
+
+const handlePlayVideo = () => {
+  if (localVideoRef.current) {
+    localVideoRef.current
+      .play()
+      .catch((e) => console.error('Error playing video', e));
+  }
+};
+
   
 
   return (
         <div className="text-black">
           receiver
             <div className="border-black border " >
-            <video src="" className="border-white border "  ref={localVideoRef} ></video>
+            <video src="" className="border-white border " autoPlay controls muted playsInline  ref={localVideoRef} ></video>
           </div>
         </div>
   )
