@@ -1,146 +1,191 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ANSWER, ICECANDIDATES, OFFER, USER1 } from '../messages/messages';
-import useSocket from '../hooks/Socket';
+import React, { useEffect, useRef, useState } from "react";
+import { ANSWER, ICECANDIDATES, OFFER, USER2 } from "../messages/messages";
+import useSocket from "../hooks/Socket";
 
 interface IMessage {
-  type: string;
-  sdp?: RTCSessionDescriptionInit;
-  candidate?: RTCIceCandidateInit;
+    type: string;
+    payload: {
+        remoteSdp: RTCSessionDescriptionInit;
+        candidate?: RTCIceCandidateInit;
+        type?: "sender" | "receiver";
+    };
 }
 
-const Sender: React.FC = () => {
-  const socket = useSocket();
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const [videoReady, setVideoReady] = useState(false);
+const Receiver: React.FC = () => {
+    const socket = useSocket();
+    const localVideoRef = useRef<HTMLVideoElement | null>(null);
+    const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+    const [_sendingPc, setSendingPc] = useState<RTCPeerConnection | null>(null);
+    const [_receiverPc, setReceiverPc] = useState<RTCPeerConnection | null>(
+        null
+    );
 
-  useEffect(() => {
-    if (!socket) return;
+    useEffect(() => {
+        if (!socket) return;
 
-    socket.onopen = () => {
-      socket.send(
-        JSON.stringify({
-          type: USER1,
-        })
-      );
-    };
+        socket.onopen = () => {
+            socket.send(
+                JSON.stringify({
+                    type: USER2,
+                })
+            );
+        };
 
-    pcRef.current = new RTCPeerConnection();
+        socket.onmessage = async (e: MessageEvent) => {
+            const message: IMessage = JSON.parse(e.data);
+            console.log("\n\nmessage", message);
+            switch (message.type) {
+                case OFFER:
+                    console.log("answer");
+                    const receiverPc = new RTCPeerConnection();
 
-    pcRef.current.ontrack = (event: RTCTrackEvent) => {
-      console.log('Track received:', event.track);
-      if (localVideoRef.current) {
-        if (!localVideoRef.current.srcObject) {
-          localVideoRef.current.srcObject = new MediaStream();
-        }
-        (localVideoRef.current.srcObject as MediaStream).addTrack(event.track);
-        setVideoReady(true);
-      }
-    };
+                    receiverPc.ontrack = (event: RTCTrackEvent) => {
+                        if (remoteVideoRef.current) {
+                            remoteVideoRef.current.srcObject = new MediaStream([
+                                event.track,
+                            ]);
+                            remoteVideoRef.current.play();
+                            console.log("\ntracks:", event.track);
+                        }
+                    };
 
-    pcRef.current.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
-      if (event.candidate) {
-        socket.send(
-          JSON.stringify({ type: ICECANDIDATES, candidate: event.candidate })
-        );
-      }
-    };
+                    receiverPc.onicecandidate = async (e) => {
+                        if (e.candidate) {
+                            socket.send(
+                                JSON.stringify({
+                                    type: ICECANDIDATES,
+                                    payload: {
+                                        candidate: e.candidate,
+                                        type: "receiver",
+                                    },
+                                })
+                            );
+                        }
+                    };
 
-    socket.onmessage = async (e: MessageEvent<string>) => {
-      const message: IMessage = JSON.parse(e.data);
-      let answer;
-      switch (message.type) {
-        case OFFER:
-          if (!pcRef.current || !message.sdp) return;
-          await pcRef.current.setRemoteDescription(
-            new RTCSessionDescription(message.sdp)
-          );
-          answer = await pcRef.current.createAnswer();
-          await pcRef.current.setLocalDescription(answer);
-          socket.send(JSON.stringify({ type: ANSWER, sdp: answer }));
-          break;
-        case ICECANDIDATES:
-          if (!pcRef.current || !message.candidate) return;
-          await pcRef.current.addIceCandidate(
-            new RTCIceCandidate(message.candidate)
-          );
-          break;
-      }
-    };
+                    await receiverPc.setRemoteDescription(
+                        message.payload.remoteSdp
+                    );
 
-    return () => {
-      pcRef.current?.close();
-    };
+                    const sdp = await receiverPc.createAnswer();
+                    await receiverPc.setLocalDescription(sdp);
 
-  }, [socket]);
+                    setReceiverPc(receiverPc);
 
-  async function sendVideo() {
-    if (!socket) return;
-    console.log('sendvideo');
+                    socket.send(
+                        JSON.stringify({
+                            type: ANSWER,
+                            payload: {
+                                remoteSdp: sdp,
+                            },
+                        })
+                    );
+                    break;
 
-    const pc = new RTCPeerConnection();
+                case ANSWER:
+                    setSendingPc((pc) => {
+                        pc?.setRemoteDescription(message.payload.remoteSdp);
+                        return pc;
+                    });
+                    break;
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.send(
-          JSON.stringify({ type: ICECANDIDATES, candidate: event.candidate })
-        );
-      }
-    };
-
-    pc.onnegotiationneeded = async () => {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      if (pc.localDescription) {
-        socket.send(JSON.stringify({ type: OFFER, sdp: pc.localDescription }));
-      }
-    };
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
-      stream.getTracks().forEach((track) => pc.addTrack(track));
-
-      socket.onmessage = async (e) => {
-        const message = JSON.parse(e.data);
-        switch (message.type) {
-          case ANSWER:
-            console.log("answer aagay")
-            if (message.sdp) {
-              await pc.setRemoteDescription(
-                new RTCSessionDescription(message.sdp)
-              );
+                case ICECANDIDATES:
+                    if (message.payload.type === "sender") {
+                        setReceiverPc((pc) => {
+                            pc?.addIceCandidate(message.payload.candidate);
+                            return pc;
+                        });
+                    } else {
+                        setSendingPc((pc) => {
+                            pc?.addIceCandidate(message.payload.candidate);
+                            return pc;
+                        });
+                    }
+                    break;
             }
-            break;
-          case ICECANDIDATES:
-            if (message.candidate) {
-              await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+        };
+
+        return () => {
+            if (localVideoRef.current && remoteVideoRef.current) {
+                localVideoRef.current.srcObject = null;
+                remoteVideoRef.current.srcObject = null;
             }
-            break;
+        };
+    }, [socket]);
+
+    async function sendVideo() {
+        if (!socket) return;
+
+        console.log("send offer");
+
+        const senderPc = new RTCPeerConnection();
+
+        senderPc.onicecandidate = async (event) => {
+            if (event.candidate) {
+                socket.send(
+                    JSON.stringify({
+                        type: ICECANDIDATES,
+                        payload: {
+                            type: "sender",
+                            candidate: event.candidate,
+                        },
+                    })
+                );
+            }
+        };
+
+        senderPc.onnegotiationneeded = async () => {
+            const sdp = await senderPc.createOffer();
+            await senderPc.setLocalDescription(sdp);
+            setSendingPc(senderPc);
+            socket.send(
+                JSON.stringify({
+                    type: OFFER,
+                    payload: {
+                        remoteSdp: sdp,
+                    },
+                })
+            );
+        };
+
+        const streams = await window.navigator.mediaDevices.getUserMedia({
+            video: true,
+        });
+
+        const videoTrack = streams.getVideoTracks()[0];
+
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = new MediaStream([videoTrack]);
+            localVideoRef.current.play();
         }
-      };
-    } catch (error) {
-      console.error('Failed to get media stream or set up connection:', error);
+
+        senderPc.addTrack(videoTrack);
     }
-  }
 
-  return (
-    <div className="text-black">
-      Sender
-      <div className="border-black border">
-        <video
-          ref={localVideoRef}
-          className="border-white border"
-          autoPlay
-          playsInline
-          muted
-        ></video>
-      </div>
-      <div className='cursor-pointer' onClick={sendVideo}>share Video</div>
-    </div>
-  );
+    return (
+        <div className="text-black">
+            Sender
+            <div className="flex border-black border gap-4">
+                <video
+                    ref={localVideoRef}
+                    className="border-white border"
+                    autoPlay
+                    playsInline
+                />
+                <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    className="border-white border"
+                />
+            </div>
+            <div
+                className="cursor-pointer"
+                onClick={sendVideo}
+            >
+                share Video
+            </div>
+        </div>
+    );
 };
 
-export default Sender;
+export default Receiver;
