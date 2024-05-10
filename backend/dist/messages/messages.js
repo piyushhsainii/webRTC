@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ICECANDIDATES = exports.ANSWER = exports.OFFER = exports.RECEIVER = exports.SENDER = void 0;
-exports.SENDER = "sender";
-exports.RECEIVER = "receiver";
+exports.SEND_OFFER = exports.SENDER = exports.ICECANDIDATES = exports.ANSWER = exports.OFFER = exports.USER2 = exports.USER1 = void 0;
+exports.USER1 = "sender";
+exports.USER2 = "receiver";
 exports.OFFER = "create-offer";
 exports.ANSWER = "answer";
 exports.ICECANDIDATES = "ice-candidates";
+exports.SENDER = "sender";
+exports.SEND_OFFER = "send_offer";
