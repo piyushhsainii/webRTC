@@ -1,5 +1,5 @@
-export const SENDER = "sender"
-export const RECEIVER = "receiver"
+export const USER1 = "USER1"
+export const USER2 = "USER2"
 export const OFFER = "create-offer"
 export const  ANSWER = "answer"
 export const ICECANDIDATES = "ice-candidates"

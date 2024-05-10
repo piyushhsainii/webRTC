@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ANSWER, ICECANDIDATES, OFFER, SENDER } from '../messages/messages';
+import { ANSWER, ICECANDIDATES, OFFER, USER1 } from '../messages/messages';
 import useSocket from '../hooks/Socket';
 
 interface IMessage {
@@ -20,7 +20,7 @@ const Sender: React.FC = () => {
     socket.onopen = () => {
       socket.send(
         JSON.stringify({
-          type: SENDER,
+          type: USER1,
         })
       );
     };
@@ -72,7 +72,6 @@ const Sender: React.FC = () => {
       pcRef.current?.close();
     };
 
-
   }, [socket]);
 
   async function sendVideo() {
@@ -108,6 +107,7 @@ const Sender: React.FC = () => {
         const message = JSON.parse(e.data);
         switch (message.type) {
           case ANSWER:
+            console.log("answer aagay")
             if (message.sdp) {
               await pc.setRemoteDescription(
                 new RTCSessionDescription(message.sdp)

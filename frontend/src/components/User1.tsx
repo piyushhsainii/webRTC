@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import useSocket from '../hooks/Socket'; // assuming this is your custom hook
-import { ANSWER, ICECANDIDATES, OFFER, RECEIVER } from '../messages/messages';
+import { ANSWER, ICECANDIDATES, OFFER, USER2 } from '../messages/messages';
 
 interface IMessage {
   type: string;
@@ -18,7 +18,7 @@ const Receiver: React.FC = () => {
     if (!socket) return;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ type: RECEIVER }));
+      socket.send(JSON.stringify({ type: USER2 }));
     };
 
     pcRef.current = new RTCPeerConnection();
@@ -101,13 +101,16 @@ const Receiver: React.FC = () => {
       socket.onmessage = async (e) => {
         const message = JSON.parse(e.data);
         switch (message.type) {
+
           case ANSWER:
+            console.log("answer aagay")
             if (message.sdp) {
               await pc.setRemoteDescription(
                 new RTCSessionDescription(message.sdp)
               );
             }
             break;
+
           case ICECANDIDATES:
             if (message.candidate) {
               await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
