@@ -168,14 +168,14 @@ const Sender: React.FC = () => {
             <div className="flex border-black border gap-4">
                 <video
                     ref={localVideoRef}
-                    className="border-white border"
+                    className="border-white border h-[200px] w-[200px]"
                     autoPlay
                     playsInline
                 />
                 <video
                     ref={remoteVideoRef}
                     autoPlay
-                    className="border-white border"
+                    className="border-white border h-[200px] w-[200px]"
                 />
             </div>
             <div
