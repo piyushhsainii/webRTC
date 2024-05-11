@@ -8,40 +8,43 @@ const wss = new ws_1.WebSocketServer({ port: 8080 });
 wss.on('connection', (ws) => {
     ws.on('message', (data) => {
         const message = JSON.parse(data);
-        console.log(message, 'event data');
         switch (message.type) {
-            case messages_1.SENDER:
+            case messages_1.USER1:
                 senderSocket = ws;
                 break;
-            case messages_1.RECEIVER:
+            case messages_1.USER2:
                 receiverSocket = ws;
                 break;
             case messages_1.OFFER:
                 if (ws === senderSocket && receiverSocket) {
-                    console.log('Offer received from sender, relaying to receiver');
-                    receiverSocket.send(JSON.stringify({ type: messages_1.OFFER, sdp: message.sdp }));
+                    receiverSocket.send(JSON.stringify({
+                        type: messages_1.OFFER,
+                        payload: { sdp: message.payload.sdp }
+                    }));
                 }
                 if (ws === receiverSocket && senderSocket) {
-                    console.log('Offer received from sender, relaying to receiver');
-                    senderSocket.send(JSON.stringify({ type: messages_1.OFFER, sdp: message.sdp }));
+                    senderSocket.send(JSON.stringify({
+                        type: messages_1.OFFER,
+                        payload: { sdp: message.payload.sdp }
+                    }));
                 }
                 break;
             case messages_1.ANSWER:
                 if (ws === receiverSocket && senderSocket) {
-                    console.log('Answer received from receiver, relaying to sender');
-                    senderSocket.send(JSON.stringify({ type: messages_1.ANSWER, sdp: message.sdp }));
+                    senderSocket.send(JSON.stringify({ type: messages_1.ANSWER, payload: { sdp: message.payload.sdp } }));
                 }
                 if (ws === senderSocket && receiverSocket) {
-                    console.log('Answer received from receiver, relaying to sender');
-                    receiverSocket.send(JSON.stringify({ type: messages_1.ANSWER, sdp: message.sdp }));
+                    receiverSocket.send(JSON.stringify({ type: messages_1.ANSWER, payload: { sdp: message.payload.sdp } }));
                 }
                 break;
             case messages_1.ICECANDIDATES:
                 const targetSocket = ws === senderSocket ? receiverSocket : senderSocket;
-                if (targetSocket && message.candidate) {
+                if (targetSocket && message.payload.candidate) {
                     targetSocket.send(JSON.stringify({
                         type: messages_1.ICECANDIDATES,
-                        candidate: message.candidate,
+                        payload: {
+                            candidate: message.payload.candidate
+                        }
                     }));
                 }
                 break;
